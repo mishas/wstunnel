@@ -1,0 +1,6 @@
+The following components are included in this product:
+
+SOCKS5 server in Golang
+https://github.com/armon/go-socks5
+Copyright (c) 2014 Armon Dadgar
+Licensesd under the MIT License

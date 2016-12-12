@@ -21,8 +21,8 @@ var (
 		"Expected files are: cacert.pem, cert.pem and key.pem.")
 	serverName = flag.String("server_name", "", "Name of the server for TLS verification, or empty for default")
 
-	host = flag.String("host", "", "The host:port to tunnel to")
-	port = flag.Int("port", 8080, "The local port to listen on")
+	targetHost = flag.String("target_host", "", "The target host:port to tunnel to")
+	port       = flag.Int("port", 8080, "The local port to listen on")
 )
 
 func getTlsConfig() (*tls.Config, error) {
@@ -51,7 +51,7 @@ func getTlsConfig() (*tls.Config, error) {
 }
 
 func getWsConfig() (*websocket.Config, error) {
-	url := url.URL{Scheme: "ws", Host: *host}
+	url := url.URL{Scheme: "ws", Host: *targetHost}
 	if *certsDir != "" {
 		url.Scheme = "wss"
 	}

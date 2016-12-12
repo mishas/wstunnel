@@ -1,8 +1,7 @@
 # wstunnel
 Tunneling SOCKS5 proxy over Websockets.
 
-This project contains two binaries: client and server.
-
+This project contains two binaries: client and server.  
 Running them in tandem creates a tunnel over Websocket protocol that proxies any information.
 
 ## Example

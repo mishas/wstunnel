@@ -20,7 +20,9 @@ var (
 	certsDir = flag.String("certs_dir", "", "Directory of certs for TLS connection to AMQP, or empty for non-TLS connection. "+
 		"Expected files are: cacert.pem, cert.pem and key.pem.")
 	serverName = flag.String("server_name", "", "Name of the server for TLS verification, or empty for default")
-	host       = flag.String("host", "", "The host:port to tunnel to")
+
+	host = flag.String("host", "", "The host:port to tunnel to")
+	port = flag.Int("port", 8080, "The local port to listen on")
 )
 
 func getTlsConfig() (*tls.Config, error) {
@@ -119,7 +121,7 @@ func main() {
 		panic(err)
 	}
 
-	ln, err := net.Listen("tcp", ":8080")
+	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
 	if err != nil {
 		panic(err)
 	}

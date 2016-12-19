@@ -1,8 +1,11 @@
 package main
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"path"
 
@@ -27,26 +30,45 @@ func getAddr() string {
 	return fmt.Sprintf(":%d", *port)
 }
 
+func getTlsConfig() (*tls.Config, error) {
+	tlscfg := new(tls.Config)
+	tlscfg.ClientCAs = x509.NewCertPool()
+	if ca, err := ioutil.ReadFile(path.Join(*certsDir, "cacert.pem")); err == nil {
+		tlscfg.ClientCAs.AppendCertsFromPEM(ca)
+	} else {
+		return nil, fmt.Errorf("Failed reading CA certificate: %v", err)
+	}
+
+	if cert, err := tls.LoadX509KeyPair(path.Join(*certsDir, "/cert.pem"), path.Join(*certsDir, "/key.pem")); err == nil {
+		tlscfg.Certificates = append(tlscfg.Certificates, cert)
+	} else {
+		return nil, fmt.Errorf("Failed reading client certificate: %v", err)
+	}
+
+	tlscfg.ClientAuth = tls.RequireAndVerifyClientCert
+
+	return tlscfg, nil
+}
+
 func main() {
 	flag.Parse()
 
-	server, err := socks5.New(&socks5.Config{})
+	socks, err := socks5.New(&socks5.Config{})
 	if err != nil {
 		panic(err)
 	}
 
-	http.Handle("/", websocket.Handler(func(conn *websocket.Conn) { server.ServeConn(conn) }))
+	http.Handle("/", websocket.Handler(func(conn *websocket.Conn) { socks.ServeConn(conn) }))
+
+	server := &http.Server{Addr: getAddr()}
 
 	if *certsDir == "" {
-		if err := http.ListenAndServe(getAddr(), nil); err != nil {
-			panic(err)
-		}
+		err = server.ListenAndServe()
 	} else {
-		cert := path.Join(*certsDir, "cert.pem")
-		key := path.Join(*certsDir, "key.pem")
-
-		if err := http.ListenAndServeTLS(getAddr(), cert, key, nil); err != nil {
+		if server.TLSConfig, err = getTlsConfig(); err != nil {
 			panic(err)
 		}
+		err = server.ListenAndServeTLS("", "")
 	}
+	panic(err)
 }

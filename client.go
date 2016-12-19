@@ -91,7 +91,12 @@ func handleConnection(wsConfig *websocket.Config, conn net.Conn) {
 		log.Print("proxy.FromEnvironment().Dial(): ", err)
 		return
 	}
-	ws, err := websocket.NewClient(wsConfig, tls.Client(tcp, wsConfig.TlsConfig))
+
+	if *certsDir != "" {
+		tcp = tls.Client(tcp, wsConfig.TlsConfig)
+	}
+
+	ws, err := websocket.NewClient(wsConfig, tcp)
 	if err != nil {
 		log.Print("websocket.NewClient(): ", err)
 		return

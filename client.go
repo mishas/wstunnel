@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/url"
 	"path"
+	"strings"
 
 	"golang.org/x/net/proxy"
 	"golang.org/x/net/websocket"
@@ -44,6 +45,7 @@ func getTlsConfig() (*tls.Config, error) {
 		return nil, fmt.Errorf("Failed reading client certificate: %v", err)
 	}
 
+	tlscfg.ServerName = strings.Split(*targetHost, ":")[0]
 	if *serverName != "" {
 		tlscfg.ServerName = *serverName
 	}

@@ -108,7 +108,7 @@ func getProxiedConn(turl url.URL) (net.Conn, error) {
 	}
 
 	cc := httputil.NewProxyClientConn(p, nil)
-	cc.Do(&http.Request{
+	_, err = cc.Do(&http.Request{
 		Method: "CONNECT",
 		URL:    &url.URL{},
 		Host:   turl.Host,

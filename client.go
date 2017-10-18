@@ -91,14 +91,12 @@ func getProxiedConn(turl url.URL) (net.Conn, error) {
 	// We first try to get a Socks5 proxied conncetion. If that fails, we're moving on to http{s,}_proxy.
 	dialer := proxy.FromEnvironment()
 	if dialer != proxy.Direct {
-		log.Println("Connected over SOCKS5")
 		return dialer.Dial("tcp", turl.Host)
 	}
 
 	turl.Scheme = strings.Replace(turl.Scheme, "ws", "http", 1)
 	proxyURL, err := http.ProxyFromEnvironment(&http.Request{URL: &turl})
 	if proxyURL == nil {
-		log.Println("Connected Directly")
 		return net.Dial("tcp", turl.Host)
 	}
 

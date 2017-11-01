@@ -9,6 +9,8 @@ import (
 	"io/ioutil"
 	"log"
 	"net"
+	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"path"
 	"strings"
@@ -85,12 +87,45 @@ func closeWrite(conn net.Conn) {
 	}
 }
 
+func getProxiedConn(turl url.URL) (net.Conn, error) {
+	// We first try to get a Socks5 proxied conncetion. If that fails, we're moving on to http{s,}_proxy.
+	dialer := proxy.FromEnvironment()
+	if dialer != proxy.Direct {
+		return dialer.Dial("tcp", turl.Host)
+	}
+
+	turl.Scheme = strings.Replace(turl.Scheme, "ws", "http", 1)
+	proxyURL, err := http.ProxyFromEnvironment(&http.Request{URL: &turl})
+	if proxyURL == nil {
+		return net.Dial("tcp", turl.Host)
+	}
+
+	p, err := net.Dial("tcp", proxyURL.Host)
+	if err != nil {
+		return nil, err
+	}
+
+	cc := httputil.NewProxyClientConn(p, nil)
+	_, err = cc.Do(&http.Request{
+		Method: "CONNECT",
+		URL:    &url.URL{},
+		Host:   turl.Host,
+	})
+	if err != nil && err != httputil.ErrPersistEOF {
+		return nil, err
+	}
+
+	conn, _ := cc.Hijack()
+
+	return conn, nil
+}
+
 func handleConnection(wsConfig *websocket.Config, conn net.Conn) {
 	defer conn.Close()
 
-	tcp, err := proxy.FromEnvironment().Dial("tcp", wsConfig.Location.Host)
+	tcp, err := getProxiedConn(*wsConfig.Location)
 	if err != nil {
-		log.Print("proxy.FromEnvironment().Dial(): ", err)
+		log.Print("getProxiedConn(): ", err)
 		return
 	}
 

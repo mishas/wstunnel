@@ -71,7 +71,11 @@ func main() {
 	if *certsDir != "" {
 		httpsMux := setDebugHandlers(http.NewServeMux())
 		mainMux = httpsMux
-		httpsServer = &http.Server{Addr: fmt.Sprintf(":%d", *httpsPort), Handler: httpsMux}
+		httpsServer = &http.Server{
+			Addr: fmt.Sprintf(":%d", *httpsPort), Handler: httpsMux,
+			// The next line disables HTTP/2, as this does not support websockets.
+			TLSNextProto: make(map[string]func(*http.Server, *tls.Conn, http.Handler)),
+		}
 		if httpsServer.TLSConfig, err = getTlsConfig(); err != nil {
 			panic(err)
 		}

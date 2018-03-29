@@ -14,21 +14,10 @@ import (
 )
 
 var (
-	certsDir = flag.String("certs_dir", "", "Directory of certs for starting a wss:// server, or empty for ws:// server. Expected files are: cert.pem and key.pem.")
-	port     = flag.Int("port", 0, "The port to listen to, or empty for default (80 or 443).")
+	certsDir  = flag.String("certs_dir", "", "Directory of certs for starting a wss:// server, or empty for ws:// server. Expected files are: cert.pem and key.pem.")
+	httpPort  = flag.Int("http_port", 80, "The port to listen to for http responses")
+	httpsPort = flag.Int("https_port", 443, "The port to listen to for https responses")
 )
-
-func getAddr() string {
-	if *port == 0 {
-		if *certsDir == "" {
-			*port = 80
-		} else {
-			*port = 443
-		}
-	}
-
-	return fmt.Sprintf(":%d", *port)
-}
 
 func getTlsConfig() (*tls.Config, error) {
 	tlscfg := new(tls.Config)
@@ -50,6 +39,22 @@ func getTlsConfig() (*tls.Config, error) {
 	return tlscfg, nil
 }
 
+func startServers(httpServer, httpsServer *http.Server) error {
+	c := make(chan error)
+	go func() { c <- httpServer.ListenAndServe() }()
+	if httpsServer != nil {
+		go func() { c <- httpsServer.ListenAndServeTLS("", "") }()
+	}
+
+	return <-c
+}
+
+func setDebugHandlers(mux *http.ServeMux) *http.ServeMux {
+	mux.HandleFunc("/generate_204", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(204) })
+	mux.HandleFunc("/success", func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("success\n")) })
+	return mux
+}
+
 func main() {
 	flag.Parse()
 
@@ -58,17 +63,25 @@ func main() {
 		panic(err)
 	}
 
-	http.Handle("/", websocket.Handler(func(conn *websocket.Conn) { socks.ServeConn(conn) }))
+	httpMux := setDebugHandlers(http.NewServeMux())
+	httpServer := &http.Server{Addr: fmt.Sprintf(":%d", *httpPort), Handler: httpMux}
+	mainMux := httpMux
 
-	server := &http.Server{Addr: getAddr()}
-
-	if *certsDir == "" {
-		err = server.ListenAndServe()
-	} else {
-		if server.TLSConfig, err = getTlsConfig(); err != nil {
+	var httpsServer *http.Server
+	if *certsDir != "" {
+		httpsMux := setDebugHandlers(http.NewServeMux())
+		mainMux = httpsMux
+		httpsServer = &http.Server{
+			Addr: fmt.Sprintf(":%d", *httpsPort), Handler: httpsMux,
+			// The next line disables HTTP/2, as this does not support websockets.
+			TLSNextProto: make(map[string]func(*http.Server, *tls.Conn, http.Handler)),
+		}
+		if httpsServer.TLSConfig, err = getTlsConfig(); err != nil {
 			panic(err)
 		}
-		err = server.ListenAndServeTLS("", "")
 	}
-	panic(err)
+
+	mainMux.Handle("/", websocket.Handler(func(conn *websocket.Conn) { socks.ServeConn(conn) }))
+
+	panic(startServers(httpServer, httpsServer))
 }

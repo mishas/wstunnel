@@ -26,6 +26,7 @@ var (
 
 	targetHost = flag.String("target_host", "", "The target host:port to tunnel to")
 	port       = flag.Int("port", 8080, "The local port to listen on")
+	listenAddr = flag.String("listen_addr", "127.0.0.1", "Address to listen on. Empty string for all interfaces.")
 )
 
 func getTlsConfig() (*tls.Config, error) {
@@ -163,7 +164,7 @@ func main() {
 		panic(err)
 	}
 
-	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
+	ln, err := net.Listen("tcp", fmt.Sprintf("%s:%d", *listenAddr, *port))
 	if err != nil {
 		panic(err)
 	}

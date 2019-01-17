@@ -1,8 +1,7 @@
 package(default_visibility = ["//visibility:public"])
 
-load("@io_bazel_rules_go//go:def.bzl", "go_prefix", "go_binary")
+load("@io_bazel_rules_go//go:def.bzl", "go_binary")
 
-go_prefix("github.com/mishas/websocket-tunnel")
 
 go_binary(
     name = "client",

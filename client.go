@@ -35,6 +35,7 @@ func getTlsConfig() (*tls.Config, error) {
 	}
 
 	tlscfg := new(tls.Config)
+	tlscfg.MinVersion = tls.VersionTLS12
 	tlscfg.RootCAs = x509.NewCertPool()
 	if ca, err := ioutil.ReadFile(path.Join(*certsDir, "cacert.pem")); err == nil {
 		tlscfg.RootCAs.AppendCertsFromPEM(ca)

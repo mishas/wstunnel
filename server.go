@@ -20,9 +20,23 @@ var (
 )
 
 func getTlsConfig() (*tls.Config, error) {
-	tlscfg := new(tls.Config)
-	tlscfg.MinVersion = tls.VersionTLS12
-	tlscfg.ClientCAs = x509.NewCertPool()
+	tlscfg := &tls.Config{
+		ClientAuth:               tls.RequireAndVerifyClientCert,
+		ClientCAs:                x509.NewCertPool(),
+		CurvePreferences:         []tls.CurveID{tls.CurveP521, tls.CurveP384, tls.CurveP256},
+		MinVersion:               tls.VersionTLS12,
+		PreferServerCipherSuites: true,
+		CipherSuites: []uint16{
+			tls.TLS_RSA_WITH_AES_256_CBC_SHA,
+			tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
+			tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
+			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+			tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+		},
+	}
 	if ca, err := ioutil.ReadFile(path.Join(*certsDir, "cacert.pem")); err == nil {
 		tlscfg.ClientCAs.AppendCertsFromPEM(ca)
 	} else {
@@ -34,8 +48,6 @@ func getTlsConfig() (*tls.Config, error) {
 	} else {
 		return nil, fmt.Errorf("Failed reading client certificate: %v", err)
 	}
-
-	tlscfg.ClientAuth = tls.RequireAndVerifyClientCert
 
 	return tlscfg, nil
 }

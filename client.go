@@ -35,7 +35,7 @@ func getTlsConfig() (*tls.Config, error) {
 	}
 
 	tlscfg := &tls.Config{
-		ClientCAs:        x509.NewCertPool(),
+		RootCAs:          x509.NewCertPool(),
 		CurvePreferences: []tls.CurveID{tls.CurveP521},
 		MinVersion:       tls.VersionTLS12,
 		CipherSuites:     []uint16{tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384},

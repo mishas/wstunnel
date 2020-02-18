@@ -1,23 +1,57 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"path"
+	"strings"
 
 	socks5 "github.com/armon/go-socks5"
 	"golang.org/x/net/websocket"
 )
 
 var (
-	certsDir  = flag.String("certs_dir", "", "Directory of certs for starting a wss:// server, or empty for ws:// server. Expected files are: cert.pem and key.pem.")
-	httpPort  = flag.Int("http_port", 80, "The port to listen to for http responses")
-	httpsPort = flag.Int("https_port", 443, "The port to listen to for https responses")
+	certsDir        = flag.String("certs_dir", "", "Directory of certs for starting a wss:// server, or empty for ws:// server. Expected files are: cert.pem and key.pem.")
+	httpPort        = flag.Int("http_port", 80, "The port to listen to for http responses")
+	httpsPort       = flag.Int("https_port", 443, "The port to listen to for https responses")
+	blockedNetmasks = flag.String("blocked_netmasks", "", "List (comma separated) of netmasks that would not be served")
 )
+
+type RuleSet []*net.IPNet
+
+func newRuleSet() *RuleSet {
+	if *blockedNetmasks == "" {
+		rs := make(RuleSet, 0)
+		return &rs
+	}
+
+	nms := strings.Split(*blockedNetmasks, ",")
+	rs := make(RuleSet, len(nms))
+	for i, nm := range nms {
+		_, ipnet, err := net.ParseCIDR(nm)
+		if err != nil || ipnet == nil {
+			panic(fmt.Sprintf("Couldn't parse netmask: %v: %s", err, nm))
+		}
+		rs[i] = ipnet
+	}
+
+	return &rs
+}
+
+func (rs *RuleSet) Allow(ctx context.Context, req *socks5.Request) (context.Context, bool) {
+	for _, ipnet := range *rs {
+		if ipnet.Contains(req.DestAddr.IP) {
+			return ctx, false
+		}
+	}
+	return ctx, true
+}
 
 func getTlsConfig() (*tls.Config, error) {
 	tlscfg := &tls.Config{
@@ -71,7 +105,7 @@ func setDebugHandlers(mux *http.ServeMux) *http.ServeMux {
 func main() {
 	flag.Parse()
 
-	socks, err := socks5.New(&socks5.Config{})
+	socks, err := socks5.New(&socks5.Config{Rules: newRuleSet()})
 	if err != nil {
 		panic(err)
 	}
